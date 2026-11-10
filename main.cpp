@@ -26,6 +26,7 @@ struct Game {
         }
         return result;
     }
+    //minecraft
     std::vector<Move> moves() const {
         std::vector<Move> result;
         for(int p=0;p<64;++p) if(board[p]==turn)
