@@ -1,5 +1,5 @@
 #include <GLFW/glfw3.h>
-#include "font_data.h"
+#include "text_renderer.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -9,17 +9,19 @@
 #include <vector>
 #include <map>
 
+using namespace std;
+
 // Coordonate: a1 = (0,0). Alb = 1, negru = -1.
 struct Move { int from, to; };
 struct Game {
-    std::array<int,64> board{};
+    array<int,64> board{};
     int turn=1, ply=0;
     Game() {
         for(int y=0;y<8;++y) for(int x=0;x<8;++x)
             if((x+y)%2==0 && (y<2 || y>5)) board[y*8+x]=y<2?1:-1;
     }
-    std::vector<int> destinations(int p) const {
-        std::vector<int> result;
+    vector<int> destinations(int p) const {
+        vector<int> result;
         for(int dx:{-1,1}) for(int dy:{-1,1}) {
             int x=p%8+dx,y=p/8+dy;
             if(x>=0&&x<8&&y>=0&&y<8&&!board[y*8+x]) result.push_back(y*8+x);
@@ -27,20 +29,20 @@ struct Game {
         return result;
     }
     //minecraft
-    std::vector<Move> moves() const {
-        std::vector<Move> result;
+    vector<Move> moves() const {
+        vector<Move> result;
         for(int p=0;p<64;++p) if(board[p]==turn)
             for(int q:destinations(p)) result.push_back({p,q});
         return result;
     }
-    int count(int side) const { return int(std::count(board.begin(),board.end(),side)); }
+    int count(int side) const { return int(::count(board.begin(),board.end(),side)); }
     bool over() const { return ply>=200 || !count(1) || !count(-1) || moves().empty(); }
     void apply(Move m) {
         board[m.to]=board[m.from]; board[m.from]=0; ++ply;
         // Primele patru mutari ale fiecaruia sunt de dezvoltare.
         // Evaluare simultana: eliminarea unei piese nu salveaza alta piesa blocata.
         if(ply>=8) {
-            std::vector<int> captured;
+            vector<int> captured;
             for(int p=0;p<64;++p) if(board[p]&&destinations(p).empty()) captured.push_back(p);
             for(int p:captured) board[p]=0;
         }
@@ -50,7 +52,7 @@ struct Game {
 int evaluation(const Game& g) {
     int value=1000*(g.count(1)-g.count(-1));
     for(int p=0;p<64;++p) if(g.board[p])
-        value+=g.board[p]*(int(g.destinations(p).size())*8+int(7-std::abs(2*(p%8)-7)));
+        value+=g.board[p]*(int(g.destinations(p).size())*8+int(7-abs(2*(p%8)-7)));
     return value;
 }
 int search(const Game& g,int depth,int alpha,int beta) {
@@ -58,8 +60,8 @@ int search(const Game& g,int depth,int alpha,int beta) {
     int best=g.turn==1?-1000000:1000000;
     for(auto m:g.moves()) {
         Game next=g; next.apply(m); int v=search(next,depth-1,alpha,beta);
-        if(g.turn==1) { best=std::max(best,v); alpha=std::max(alpha,best); }
-        else { best=std::min(best,v); beta=std::min(beta,best); }
+        if(g.turn==1) { best=max(best,v); alpha=max(alpha,best); }
+        else { best=min(best,v); beta=min(beta,best); }
         if(beta<=alpha) break;
     }
     return best;
@@ -76,41 +78,25 @@ void rect(float x,float y,float w,float h) {
     glBegin(GL_QUADS); glVertex2f(x,y); glVertex2f(x+w,y); glVertex2f(x+w,y+h); glVertex2f(x,y+h); glEnd();
 }
 struct TextTexture { GLuint id; int width,height; };
-std::map<std::string,TextTexture> textCache;
-// Embedded Latin glyphs include Romanian diacritics; no font library is needed.
-void text(float x,float y,const std::string& s,float scale=2,float maxWidth=10000) {
+map<string,TextTexture> textCache;
+// Render the bundled Noto Sans TrueType font, including Romanian diacritics.
+void text(float x,float y,const string& s,float scale=2,float maxWidth=10000) {
     if(s.empty()) return;
     auto found=textCache.find(s);
     if(found==textCache.end()) {
 
-        std::vector<const FontGlyph*> glyphs;
-        for(std::size_t i=0;i<s.size();) {
-            unsigned codepoint=static_cast<unsigned char>(s[i++]);
-            if((codepoint&0xe0)==0xc0 && i<s.size()) {
-                codepoint=((codepoint&0x1f)<<6)|(static_cast<unsigned char>(s[i++])&0x3f);
-            }
-            const FontGlyph* glyph=&fontGlyphs['?'-32];
-            for(const auto& candidate:fontGlyphs) if(candidate.codepoint==codepoint) { glyph=&candidate; break; }
-            glyphs.push_back(glyph);
-        }
-        int w=8,h=40;
-        for(auto glyph:glyphs) w+=glyph->advance;
-        std::vector<unsigned char> pixels(w*h,0);
-        int cursor=0;
-        for(auto glyph:glyphs) {
-            for(int row=0;row<h;++row) for(int col=0;col<40 && cursor+col<w;++col)
-                if(glyph->rows[row]&(std::uint64_t(1)<<col)) pixels[row*w+cursor+col]=255;
-            cursor+=glyph->advance;
-        }
+        auto bitmap=rasterizeText(s);
         GLuint id; glGenTextures(1,&id); glBindTexture(GL_TEXTURE_2D,id);
         glPixelStorei(GL_UNPACK_ALIGNMENT,1);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-        glTexImage2D(GL_TEXTURE_2D,0,GL_ALPHA,w,h,0,GL_ALPHA,GL_UNSIGNED_BYTE,pixels.data());
-        found=textCache.emplace(s,TextTexture{id,w,h}).first;
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_ALPHA,bitmap.width,bitmap.height,0,GL_ALPHA,GL_UNSIGNED_BYTE,bitmap.pixels.data());
+        found=textCache.emplace(s,TextTexture{id,bitmap.width,bitmap.height}).first;
     }
     auto t=found->second; float factor=scale*.4f;
-    factor=std::min(factor,maxWidth/t.width);
+    factor=min(factor,maxWidth/t.width);
     float w=t.width*factor,h=t.height*factor;
     glEnable(GL_TEXTURE_2D); glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
     glBindTexture(GL_TEXTURE_2D,t.id);
@@ -121,7 +107,7 @@ void text(float x,float y,const std::string& s,float scale=2,float maxWidth=1000
 }
 void circle(float x,float y,float radius) {
     glBegin(GL_TRIANGLE_FAN); glVertex2f(x,y);
-    for(int i=0;i<=64;++i) { float a=float(i)*6.2831853f/64; glVertex2f(x+radius*std::cos(a),y+radius*std::sin(a)); } glEnd();
+    for(int i=0;i<=64;++i) { float a=float(i)*6.2831853f/64; glVertex2f(x+radius*cos(a),y+radius*sin(a)); } glEnd();
 }
 enum class Screen { Menu, Settings, Playing };
 enum class Language { Romanian, English };
@@ -129,12 +115,12 @@ struct Button { float x,y,w,h; int action; };
 struct App {
     Screen screen=Screen::Menu, settingsReturn=Screen::Menu;
     Language language=Language::Romanian;
-    std::vector<Button> buttons;
+    vector<Button> buttons;
     bool quit=false;
-    std::string tr(const char* ro,const char* en) const {
+    string tr(const char* ro,const char* en) const {
         return language==Language::Romanian?ro:en;
     }
-    void button(float x,float y,float w,const std::string& label,int action,bool active=false) {
+    void button(float x,float y,float w,const string& label,int action,bool active=false) {
         buttons.push_back({x,y,w,48,action});
         if(active) color(.32f,.47f,.40f); else color(.14f,.23f,.28f);
         rect(x,y,w,48); color(.93f,.94f,.90f);
@@ -163,7 +149,7 @@ struct App {
         if(key==GLFW_KEY_C) { screen=Screen::Menu; help=false; }
     }
     Game game;
-    std::vector<Game> history;
+    vector<Game> history;
     int selected=-1;
     bool ai=false,help=false;
     float bx=40,by=100,cell=70;
@@ -180,12 +166,12 @@ struct App {
         for(auto b:buttons) if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h) { action(b.action); return; }
         if(screen!=Screen::Playing) return;
         if(help||game.over()||(ai&&game.turn==-1)) return;
-        int cx=int(std::floor((x-bx)/cell)),cy=int(std::floor((y-by)/cell));
+        int cx=int(floor((x-bx)/cell)),cy=int(floor((y-by)/cell));
         if(cx<0||cx>=8||cy<0||cy>=8) { selected=-1; return; }
         int p=(7-cy)*8+cx;
         if(game.board[p]==game.turn) { selected=p; return; }
         if(selected>=0) { auto options=game.destinations(selected);
-            if(std::find(options.begin(),options.end(),p)!=options.end()) play({selected,p});
+            if(find(options.begin(),options.end(),p)!=options.end()) play({selected,p});
             else selected=-1;
         }
     }
@@ -211,16 +197,16 @@ struct App {
             }
             return;
         }
-        cell=std::max(1.f,std::min((w-360.f)/8,(h-150.f)/8)); bx=40; by=100;
+        cell=max(1.f,min((w-360.f)/8,(h-150.f)/8)); bx=40; by=100;
         color(.89f,.92f,.95f); text(40,22,tr("Război în 8","War in Eight"),3);
         text(40,65,tr("Olimpiada Jocurilor Raționale","Olympiad of Rational Games"),1.5f);
-        auto options=selected<0?std::vector<int>{}:game.destinations(selected);
+        auto options=selected<0?vector<int>{}:game.destinations(selected);
         for(int p=0;p<64;++p) {
             float x=bx+(p%8)*cell,y=by+(7-p/8)*cell;
             if((p%8+p/8)%2==0) color(.18f,.28f,.32f); else color(.67f,.73f,.70f);
             rect(x,y,cell,cell);
             if(p==selected) { color(.87f,.65f,.23f); rect(x+2,y+2,cell-4,cell-4); }
-            if(std::find(options.begin(),options.end(),p)!=options.end()) { color(.30f,.85f,.65f); circle(x+cell/2,y+cell/2,cell*.12f); }
+            if(find(options.begin(),options.end(),p)!=options.end()) { color(.30f,.85f,.65f); circle(x+cell/2,y+cell/2,cell*.12f); }
             if(game.board[p]) {
                 color(.05f,.08f,.10f); circle(x+cell*.52f,y+cell*.55f,cell*.35f);
                 if(game.board[p]==1) color(.94f,.90f,.76f); else color(.12f,.16f,.21f);
@@ -232,10 +218,10 @@ struct App {
             }
         }
         color(.75f,.82f,.86f);
-        for(int i=0;i<8;++i) { text(bx+i*cell+cell/2-4,by+8*cell+12,std::string(1,char('A'+i)),1.5f);
-            text(20,by+(7-i)*cell+cell/2-5,std::to_string(i+1),1.5f); }
+        for(int i=0;i<8;++i) { text(bx+i*cell+cell/2-4,by+8*cell+12,string(1,char('A'+i)),1.5f);
+            text(20,by+(7-i)*cell+cell/2-5,to_string(i+1),1.5f); }
         float sx=bx+8*cell+28, yy=105;
-        auto line=[&](const std::string& s) { text(sx,yy,s,1.5f,w-sx-20); yy+=28; };
+        auto line=[&](const string& s) { text(sx,yy,s,1.5f,w-sx-20); yy+=28; };
         color(.94f,.78f,.42f);
         line(ai?tr("Contra calculatorului","Against computer"):tr("Doi jucători","Two players")); yy+=12;
         color(.89f,.92f,.95f);
@@ -243,12 +229,12 @@ struct App {
             int score=game.count(1)-game.count(-1);
             line(score>0?tr("Victorie alb","White wins"):score<0?tr("Victorie negru","Black wins"):tr("Remiză","Draw"));
         } else line(game.turn==1?tr("La mutare - Alb","White to move"):tr("La mutare - Negru","Black to move"));
-        line(tr("Alb: ","White: ")+std::to_string(game.count(1)));
-        line(tr("Negru: ","Black: ")+std::to_string(game.count(-1)));
-        line(tr("Tura: ","Round: ")+std::to_string(std::min(100,game.ply/2+1))+" / 100"); yy+=12;
+        line(tr("Alb: ","White: ")+to_string(game.count(1)));
+        line(tr("Negru: ","Black: ")+to_string(game.count(-1)));
+        line(tr("Tura: ","Round: ")+to_string(min(100,game.ply/2+1))+" / 100"); yy+=12;
         color(.44f,.84f,.71f);
         line(game.ply<8?tr("Faza de dezvoltare","Opening phase"):tr("Eliminări active","Captures active"));
-        if(game.ply<8) line(tr("Pași rămași: ","Steps left: ")+std::to_string(8-game.ply));
+        if(game.ply<8) line(tr("Pași rămași: ","Steps left: ")+to_string(8-game.ply));
         yy+=12; color(.75f,.82f,.86f);
         line(tr("Click - selectează și mută","Click - select and move"));
         line(tr("U - Anulează","U - Undo"));
@@ -262,7 +248,7 @@ struct App {
             color(.055f,.09f,.12f); rect(45,115,float(w-90),450);
             color(.94f,.78f,.42f); text(70,130,tr("Reguli","Rules"),2.5f,w-140);
             color(.9f,.93f,.95f);
-            std::vector<std::string> lines={
+            vector<string> lines={
                 tr("Fiecare jucător are 8 piese. Albul începe.","Each player has 8 pieces. White starts."),
                 tr("Mută un pas pe o diagonală liberă, în orice sens.","Move one step to a free diagonal square in any direction."),
                 tr("Nu sunt permise săriturile.","Jumping is not allowed."),
@@ -276,8 +262,12 @@ struct App {
         }
     }
 };
-void check(bool b,const char* message) { if(!b) throw std::runtime_error(message); }
+void check(bool b,const char* message) { if(!b) throw runtime_error(message); }
 void selfTest() {
+    for(int code:{0x0103,0x00e2,0x00ee,0x0219,0x021b,0x0102,0x00c2,0x00ce,0x0218,0x021a})
+        check(fontHasGlyph(code),"Romanian font glyph");
+    auto label=rasterizeText("Război în 8 — ăâîșț ĂÂÎȘȚ");
+    check(label.width>0 && label.height>0 && any_of(label.pixels.begin(),label.pixels.end(),[](unsigned char p){ return p>0; }),"TrueType text rendering");
     Game g; check(g.count(1)==8&&g.count(-1)==8,"initial pieces");
     check(g.destinations(0).empty(),"initial blocked corner");
     auto moves=g.moves(); check(moves.size()==7,"initial legal moves");
@@ -301,12 +291,14 @@ void selfTest() {
     app.help=true; app.key(GLFW_KEY_ESCAPE);
     check(!app.help&&app.screen==Screen::Playing,"close rules before leaving game");
     app.key(GLFW_KEY_ESCAPE); check(app.screen==Screen::Menu,"return to main menu");
-    std::cout<<"Testele regulilor si navigarii au trecut.\n";
+    cout<<"Testele regulilor si navigarii au trecut.\n";
 }
 int main(int argc,char** argv) {
-    if(argc>1&&std::string(argv[1])=="--self-test") { try { selfTest(); return 0; }
-        catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; } }
-    glfwSetErrorCallback([](int,const char* message){ std::cerr<<"GLFW: "<<message<<'\n'; });
+    try { loadFont(argv[0]); }
+    catch(const exception& e) { cerr<<e.what()<<'\n'; return 1; }
+    if(argc>1&&string(argv[1])=="--self-test") { try { selfTest(); return 0; }
+        catch(const exception& e) { cerr<<e.what()<<'\n'; return 1; } }
+    glfwSetErrorCallback([](int,const char* message){ cerr<<"GLFW: "<<message<<'\n'; });
     if(!glfwInit()) return 1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,2); glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,1);
     GLFWwindow* window=glfwCreateWindow(1060,760,"Razboi in 8",nullptr,nullptr);

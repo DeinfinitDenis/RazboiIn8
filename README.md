@@ -32,9 +32,9 @@ cmake --build --preset windows
 ctest --preset windows
 ```
 
-Rulează jocul din terminalul UCRT64 pentru acces la DLL-urile GLFW și dependențele lor. Pentru pornire din Explorer, adaugă `C:\msys64\ucrt64\bin` la `PATH` (adaptează calea instalării). Executabilul singur nu include aceste DLL-uri.
+Rulează jocul din terminalul UCRT64 pentru acces la DLL-urile GLFW și dependențele lor. Pentru pornire din Explorer, adaugă `C:\msys64\ucrt64\bin` la `PATH` (adaptează calea instalării). Executabilul singur nu include aceste DLL-uri. Dacă muți executabilul, copiază și folderul `assets` aflat lângă el.
 
-Ambele platforme folosesc GLFW pentru ferestre și intrare, OpenGL pentru desen și un font bitmap inclus pentru text românesc și englez. Nu este necesară instalarea unui font sau a unei biblioteci pentru text. Fontul inclus și licența sa se află în `font_data.h` și `FONT_LICENSE.txt`.
+Ambele platforme folosesc GLFW pentru ferestre și intrare, OpenGL pentru desen și fontul TrueType [Noto Sans Regular](https://github.com/notofonts/noto-fonts/tree/main/hinted/ttf/NotoSans) pentru text românesc și englez. Fontul original se află în `assets/NotoSans-Regular.ttf`, iar licența SIL Open Font License în `FONT_LICENSE.txt`. Textul este redat cu [stb_truetype](https://github.com/nothings/stb/blob/master/stb_truetype.h), inclus în `third_party` cu licența sa. Nu trebuie instalate biblioteci suplimentare. CMake copiază automat fontul și licența în folderul `assets` de lângă executabil; păstrează acest folder când distribui jocul. Fontul este găsit independent de directorul din care pornești jocul.
 
 Configurarea CMake pentru MSYS2 urmează [documentația MSYS2](https://www.msys2.org/docs/cmake/).
 
