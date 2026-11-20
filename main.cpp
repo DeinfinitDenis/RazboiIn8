@@ -13,7 +13,7 @@ struct Move {
 
 enum class Cell { EmptyBlack, EmptyWhite, WhitePiece, BlackPiece };
 
-// randul 0 este la alb, iar randul 7 este la negru
+// randul 0 este la alb, iar randul 7 este la negrul
 struct Game {
     Cell board[8][8]{};
     int turn = 1;
