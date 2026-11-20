@@ -29,12 +29,11 @@ cd /c/Users/YourName/Projects/RazboiIn8
 cmake --preset windows
 cmake --build --preset windows
 ./build/windows/RazboiIn8.exe
-ctest --preset windows
 ```
 
-Rulează jocul din terminalul UCRT64 pentru acces la DLL-urile GLFW și dependențele lor. Pentru pornire din Explorer, adaugă `C:\msys64\ucrt64\bin` la `PATH` (adaptează calea instalării). Executabilul singur nu include aceste DLL-uri. Dacă muți executabilul, copiază și folderul `assets` aflat lângă el.
+Rulează jocul din terminalul UCRT64 pentru acces la DLL-urile GLFW și dependențele lor. Pentru pornire din Explorer, adaugă `C:\msys64\ucrt64\bin` la `PATH` (adaptează calea instalării). Executabilul singur nu include aceste DLL-uri.
 
-Ambele platforme folosesc GLFW pentru ferestre și intrare, OpenGL pentru desen și fontul TrueType [Noto Sans Regular](https://github.com/notofonts/noto-fonts/tree/main/hinted/ttf/NotoSans) pentru text românesc și englez. Fontul original se află în `assets/NotoSans-Regular.ttf`, iar licența SIL Open Font License în `FONT_LICENSE.txt`. Textul este redat cu [stb_truetype](https://github.com/nothings/stb/blob/master/stb_truetype.h), inclus în `third_party` cu licența sa. Nu trebuie instalate biblioteci suplimentare. CMake copiază automat fontul și licența în folderul `assets` de lângă executabil; păstrează acest folder când distribui jocul. Fontul este găsit independent de directorul din care pornești jocul.
+Ambele platforme folosesc GLFW pentru ferestre și intrare și OpenGL pentru desen. Fontul Noto Sans și licența sa sunt păstrate în proiect, dar jocul nu le folosește.
 
 Configurarea CMake pentru MSYS2 urmează [documentația MSYS2](https://www.msys2.org/docs/cmake/).
 
@@ -46,27 +45,21 @@ Instalează dependențele:
 sudo apt install cmake ninja-build build-essential pkg-config libglfw3-dev libgl1-mesa-dev
 ```
 
-Compilează, pornește jocul și rulează testele:
+Compilează și pornește jocul:
 
 ```sh
 cmake --preset linux
 cmake --build --preset linux
 ./build/linux/RazboiIn8
-ctest --preset linux
 ```
 
 ## Control
 
 - Click pe piesa proprie, apoi pe o destinație marcată verde.
-La pornire apare meniul principal: **Jucător vs Jucător**, **Jucător vs Calculator**, **Setări** și **Ieșire**. Calculatorul joacă negru. Din **Setări** poți alege **Română** sau **English**; schimbarea se aplică imediat întregii interfețe. Limba este păstrată pe durata sesiunii.
+Jocul pornește în modul pentru doi jucători.
 
-În timpul partidei, butoanele **Meniu principal** și **Setări** permit navigarea fără pierderea progresului. **Continuă partida** reia jocul din meniu. Alegerea unui mod începe o partidă nouă.
-
-- **C**: revine la meniul principal.
-- **U**: anulează o mutare; împotriva calculatorului revine la tura omului.
 - **R**: partidă nouă în modul curent.
-- **H**: afișează sau ascunde regulile și pune calculatorul în pauză.
-- **Esc**: închide regulile, revine din setări sau din partidă; în meniul principal închide jocul.
+- **Esc**: închide jocul.
 
 ## Regulile folosite
 
@@ -76,6 +69,5 @@ Implementarea adoptă recomandarea din carte de a permite patru mutări de dezvo
 
 Partida se încheie după 100 de mutări pentru fiecare jucător, când o armată dispare sau când jucătorul la mutare nu are mutări legale. Scorul este numărul de piese rămase; câștigă scorul mai mare, iar egalitatea înseamnă remiză. Convențiile opționale din carte privind penalizarea zidurilor și ridicarea manuală a prizonierilor nu sunt implementate.
 
-Calculatorul analizează trei mutări individuale folosind minimax cu tăiere alfa-beta, favorizând avantajul material și mobilitatea.
 
 Sursa: [cartea, capitolul 10, paginile 246–249](https://ro.scribd.com/document/464940512/Nicolae-Oprisiu-Olimpiada-Jocurilor-Rationale-pdf).
