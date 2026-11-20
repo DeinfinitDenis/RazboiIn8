@@ -200,16 +200,10 @@ void draw(App &app, int w, int h) {
             Cell cell = app.game.board[row][column];
 
             // piesele stau doar pe patratele negre, asa ca le desenam acelasi fundal
-            switch (cell) {
-            case Cell::EmptyWhite:
+            if (cell == Cell::EmptyWhite)
                 color(.67f, .73f, .70f);
-                break;
-            case Cell::EmptyBlack:
-            case Cell::WhitePiece:
-            case Cell::BlackPiece:
+            else
                 color(.18f, .28f, .32f);
-                break;
-            }
             rect(x, y, app.cell, app.cell);
 
             if (p == app.selected) {
@@ -224,18 +218,16 @@ void draw(App &app, int w, int h) {
 
             switch (cell) {
             case Cell::WhitePiece:
-            case Cell::BlackPiece: {
-                if (cell == Cell::WhitePiece)
-                    color(.94f, .90f, .76f);
-                else
-                    color(.12f, .16f, .21f);
-                circle(x + app.cell / 2, y + app.cell / 2, app.cell * .34f);
+                color(.94f, .90f, .76f);
                 break;
-            }
+            case Cell::BlackPiece:
+                color(.12f, .16f, .21f);
+                break;
             case Cell::EmptyBlack:
             case Cell::EmptyWhite:
-                break;
+                continue;
             }
+            circle(x + app.cell / 2, y + app.cell / 2, app.cell * .34f);
         }
     }
 }
@@ -274,7 +266,7 @@ int main() {
         glfwGetFramebufferSize(window, &fw, &fh);
         // folosim dimensiunea ferestrei pentru coordonate si dimensiunea framebufferului pentru afișare
         glViewport(0, 0, fw, fh);
-        glClearColor(.055f, .09f, .12f, 1);
+        glClearColor(.055f, .09f, .12f, 1); //background color
         glClear(GL_COLOR_BUFFER_BIT);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
