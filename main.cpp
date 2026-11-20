@@ -5,7 +5,7 @@
 
 using namespace std;
 
-// Numerotăm pătratele de la a1; albul are semnul 1, iar negrul -1.
+// numerotam patratele de la a1; alb are 1, negru -1
 struct Move {
     int from;
     int to;
@@ -13,18 +13,20 @@ struct Move {
 
 enum class Cell { EmptyBlack, EmptyWhite, WhitePiece, BlackPiece };
 
-// Rândul 0 este la alb, iar rândul 7 este la negru.
+// randul 0 este la alb, iar randul 7 este la negru
 struct Game {
     Cell board[8][8]{};
     int turn = 1;
-    int ply = 0; // Numărul de mutări individuale făcute până acum.
+    int ply = 0; // nr de mutari individuale facute pana acum
 };
 
 Cell emptyCell(int x, int y) {
-    return (x + y) % 2 == 0 ? Cell::EmptyBlack : Cell::EmptyWhite;
+    if((x + y) % 2 == 0 )
+        return Cell::EmptyBlack;
+        else return Cell::EmptyWhite;
 }
 
-// Un pătrat liber nu aparține nimănui; pentru piese folosim aceleași semne ca la tură.
+// un patrat liber nu apartine nimanui. pentru piese folosim aceleasi semne ca la tura
 int owner(Cell cell) {
     if (cell == Cell::WhitePiece)
         return 1;
@@ -43,22 +45,25 @@ Game emptyGame() {
 
 Game newGame() {
     Game game = emptyGame();
-    // Punem cele opt piese ale fiecărui jucător pe pătratele închise din primele două rânduri.
+    // punem cele opt piese ale fiecarui jucator pe patratele inchise din primele doua randuri
     for (int y = 0; y < 8; ++y)
         for (int x = 0; x < 8; ++x)
             if (game.board[y][x] == Cell::EmptyBlack && (y < 2 || y > 5))
-                game.board[y][x] = y < 2 ? Cell::WhitePiece : Cell::BlackPiece;
+            {
+             if(y < 2) game.board[y][x]=Cell::WhitePiece;
+             else game.board[y][x]=Cell::BlackPiece;   
+            }
     return game;
 }
 
 vector<int> destinations(const Game &game, int p) {
     vector<int> result;
-    // Reținem fiecare poziție ca rând * 8 + coloană și încercăm cele patru diagonale.
+    // retinem fiecare poziție ca rand * 8 + coloana si incercam cele patru diagonale
     for (int dx : {-1, 1})
         for (int dy : {-1, 1}) {
             int x = p % 8 + dx;
             int y = p / 8 + dy;
-            // Păstrăm doar pătratele aflate pe tablă și neocupate.
+            // pastram doar patratele aflate pe tabla si neocupate
             if (x >= 0 && x < 8 && y >= 0 && y < 8 && owner(game.board[y][x]) == 0)
                 result.push_back(y * 8 + x);
         }
@@ -84,27 +89,27 @@ int pieceCount(const Game &game, int side) {
 }
 
 bool gameOver(const Game &game) {
-    // Partida se oprește după 200 de mutări individuale, dacă o culoare dispare sau nu mai poate muta.
+    // partida se oprsște dupa 200 de mutari individuale, daca o culoare dispare sau nu mai poate muta
     return game.ply >= 200 || !pieceCount(game, 1) || !pieceCount(game, -1) || moves(game).empty();
 }
 
 Game applyMove(Game game, Move move) {
-    // Modificăm o copie a tablei, astfel încât poziția primită să rămână neschimbată.
+    // modificam o copie a tablei, astfel incat pozitia primita sa ramana neschimbata
     game.board[move.to / 8][move.to % 8] = game.board[move.from / 8][move.from % 8];
     game.board[move.from / 8][move.from % 8] = emptyCell(move.from % 8, move.from / 8);
     ++game.ply;
 
-    // După primele opt mutări individuale, căutăm piesele blocate ale ambelor culori.
+    // dupa primele opt mutari individuale, cautam piesele blocate ale ambelor culori
     if (game.ply >= 8) {
         vector<int> captured;
         for (int p = 0; p < 64; ++p)
             if (owner(game.board[p / 8][p % 8]) && destinations(game, p).empty())
                 captured.push_back(p);
-        // Le scoatem abia după ce le-am găsit pe toate: eliminările sunt simultane.
+        // le scoatem abia dupa ce le-am găsit pe toate
         for (int p : captured)
             game.board[p / 8][p % 8] = emptyCell(p % 8, p / 8);
     }
-    // Semnul turei trece de la alb la negru sau invers.
+    // semnul turei se schimba in cealalta culoare
     game.turn = -game.turn;
     return game;
 }
@@ -118,7 +123,7 @@ void rect(float x, float y, float w, float h) {
 }
 
 void circle(float x, float y, float radius) {
-    // Desenăm cercul din triunghiuri care pornesc din același centru.
+    // desenam cercul din triunghiuri care pornesc din acelasi centru
     glBegin(GL_TRIANGLE_FAN);
     glVertex2f(x, y);
     for (int i = 0; i <= 64; ++i) {
@@ -131,14 +136,14 @@ void circle(float x, float y, float radius) {
 struct App {
     bool quit = false;
     Game game = newGame();
-    int selected = -1; // -1 înseamnă că nu este selectată nicio piesă.
+    int selected = -1; // -1 inseamna ca nu este selectata nicio piesa
     float bx = 0;
     float by = 0;
     float cell = 75;
 };
 
 void handleKey(App &app, int key) {
-    // Escape închide jocul, iar R începe o partidă nouă.
+    // esc închide jocul, R face un joc nou
     if (key == GLFW_KEY_ESCAPE)
         app.quit = true;
     else if (key == GLFW_KEY_R) {
@@ -153,19 +158,19 @@ void play(App &app, Move move) {
 }
 
 void click(App &app, double x, double y) {
-    // După încheierea partidei nu mai acceptăm mutări.
+    // dupa incheierea meciului nu mai acceptam mutari
     if (gameOver(app.game))
         return;
-    // Aflăm pe ce pătrat s-a dat click; în fereastră, rândul 7 este sus.
+    // aflam care este patratul selectat
     int cx = int(floor((x - app.bx) / app.cell));
     int cy = int(floor((y - app.by) / app.cell));
-    // Un click în afara tablei anulează selecția.
+    // un click in afara tablei anuleaza selectia
     if (cx < 0 || cx >= 8 || cy < 0 || cy >= 8) {
         app.selected = -1;
         return;
     }
     int p = (7 - cy) * 8 + cx;
-    // Un click pe o piesă proprie o selectează; următorul poate alege destinația.
+    // un click pe o piesa proprie o selecteaza iar urmatorul poate alege destinatia.
     if (owner(app.game.board[p / 8][p % 8]) == app.game.turn) {
         app.selected = p;
         return;
@@ -180,12 +185,13 @@ void click(App &app, double x, double y) {
 }
 
 void draw(App &app, int w, int h) {
-    // Păstrăm tabla pătrată și centrată când se schimbă dimensiunea ferestrei.
+    // pastram tabla patrata si centrata cand se schimba dimensiunea ferestrei
     app.cell = min(w, h) / 8.f;
     app.bx = (w - 8 * app.cell) / 2;
     app.by = (h - 8 * app.cell) / 2;
-    auto options = app.selected < 0 ? vector<int>{} : destinations(app.game, app.selected);
-
+    vector<int> options;
+    if(app.selected < 0) options={};
+    else options=destinations(app.game,app.selected);
     for (int row = 0; row < 8; ++row) {
         for (int column = 0; column < 8; ++column) {
             int p = row * 8 + column;
@@ -193,7 +199,7 @@ void draw(App &app, int w, int h) {
             float y = app.by + (7 - row) * app.cell;
             Cell cell = app.game.board[row][column];
 
-            // Piesele stau doar pe pătratele închise, așa că le desenăm același fundal.
+            // piesele stau doar pe patratele negre, asa ca le desenam acelasi fundal
             switch (cell) {
             case Cell::EmptyWhite:
                 color(.67f, .73f, .70f);
@@ -235,7 +241,7 @@ void draw(App &app, int w, int h) {
 }
 
 int main() {
-    // Pregătim fereastra și contextul OpenGL în care vom desena tabla.
+    // pregatim fereastra si contextul OpenGL in care vom desena tabla
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
@@ -245,7 +251,7 @@ int main() {
     glfwSwapInterval(1);
     App app;
     glfwSetWindowUserPointer(window, &app);
-    // Legăm starea jocului de fereastră, ca să o putem folosi la click și la apăsarea tastelor.
+    // legam starea jocului de fereastra ca sa o putem folosi la click si la apasarea tastelor
     glfwSetMouseButtonCallback(window, [](GLFWwindow *win, int button, int action, int) {
         if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
             double x, y;
@@ -266,13 +272,13 @@ int main() {
         int w, h, fw, fh;
         glfwGetWindowSize(window, &w, &h);
         glfwGetFramebufferSize(window, &fw, &fh);
-        // Folosim dimensiunea ferestrei pentru coordonate și dimensiunea framebufferului pentru afișare.
+        // folosim dimensiunea ferestrei pentru coordonate si dimensiunea framebufferului pentru afișare
         glViewport(0, 0, fw, fh);
         glClearColor(.055f, .09f, .12f, 1);
         glClear(GL_COLOR_BUFFER_BIT);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        // Originea este în colțul din stânga sus, ca la coordonatele mouse-ului.
+        // originea este in coltul din stanga sus, ca la coordonatele mouse-ului
         glOrtho(0, w, h, 0, -1, 1);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
